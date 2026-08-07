@@ -1,10 +1,7 @@
 from Crypto.Hash import SHA256
 import csv
 
-import sys
-sys.path.insert(1, "../")
-
-from security import RSA_key_read, RSA_key_load, RSA_key_export
+from src.modbus_tpm_security.security import RSA_key_read, RSA_key_load, RSA_key_export
 
 
 PEERS_FILE_NAME = "peers.csv"

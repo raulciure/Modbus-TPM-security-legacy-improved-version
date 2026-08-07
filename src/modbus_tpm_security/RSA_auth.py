@@ -2,7 +2,7 @@
 
 import csv
 from Crypto.Hash import SHA256
-from security import RSA_key_read
+from src.modbus_tpm_security.security import RSA_key_read
 
 PEERS_FILE_PATH = "./RSA_key_exchange/"
 

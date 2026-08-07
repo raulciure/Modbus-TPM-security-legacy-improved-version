@@ -1,5 +1,5 @@
 from time import time
-from security import *
+from src.modbus_tpm_security.security import *
 
 
 SOCKET_TIMEOUT = 2      # Socket timeout interval - in seconds

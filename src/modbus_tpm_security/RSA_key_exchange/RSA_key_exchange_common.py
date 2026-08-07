@@ -2,14 +2,11 @@ import socket
 from Crypto.Hash import SHA256
 import csv
 
-import sys
-sys.path.insert(1, "../")
+from src.modbus_tpm_security.parse_args import parse_args_RSA_key_exchange
 
-from parse_args import parse_args_RSA_key_exchange
-
-from tpm_security import store_TPM_nv, OWN_KEY_NV_INDEX
-from security import RSA_key_read_and_load, RSA_key_export, RSA_key_serialize
-from key_exchange import SOCKET_INT_SIZE, SOCKET_RECEIVE_SIZE
+from src.modbus_tpm_security.tpm_security import store_TPM_nv, OWN_KEY_NV_INDEX
+from src.modbus_tpm_security.security import RSA_key_read_and_load, RSA_key_export, RSA_key_serialize
+from src.modbus_tpm_security.key_exchange import SOCKET_INT_SIZE, SOCKET_RECEIVE_SIZE
 
 
 def store_peer_RSA_public_key(peer_public_key_bytes : bytes):

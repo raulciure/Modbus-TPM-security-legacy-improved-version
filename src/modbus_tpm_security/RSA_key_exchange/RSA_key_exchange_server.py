@@ -1,5 +1,5 @@
-from RSA_key_exchange_common import socket, RSA_public_key_exchange, parse_args_RSA_key_exchange
-import utils
+from src.modbus_tpm_security.RSA_key_exchange.RSA_key_exchange_common import socket, RSA_public_key_exchange, parse_args_RSA_key_exchange
+import src.modbus_tpm_security.utils as utils
 
 
 def RSA_key_exchange_server():

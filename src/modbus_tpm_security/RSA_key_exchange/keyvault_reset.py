@@ -1,9 +1,6 @@
 from os import remove
 import csv
-
-import sys
-sys.path.insert(1, "../")
-from tpm_security import delete_TPM_nv
+from src.modbus_tpm_security.tpm_security import delete_TPM_nv
 
 
 PEERS_FILE_NAME = "peers.csv"
