@@ -9,7 +9,7 @@ from Crypto.Signature import pss
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
 from Crypto.Protocol import DH
-# from Crypto.Random import get_random_bytes
+from Crypto.Random import get_random_bytes
 from pickle import dumps, loads
 from time import time
 from types import SimpleNamespace
@@ -41,9 +41,8 @@ def derivate_session_salt(session_secret, size = 4):
 # returns serialized nonce & enc_tuple
 def AES_encrypt_and_digest(args, key : bytes, msg : bytes, session_salt : bytes | None = None, seq_num : SimpleNamespace | None = None):
     if not args.use_seq_num_replay_resistance:     # Use timestamps
-        # nonce = get_random_bytes(12)
-        cipher = AES.new(key, AES.MODE_GCM)
-        nonce = cipher.nonce
+        nonce = get_random_bytes(12)
+        cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
 
         timestamp = int(time()).to_bytes(4)
         cipher.update(timestamp)
