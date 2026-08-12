@@ -1,0 +1,74 @@
+attacker[active]
+
+
+principal Device_A[
+    knows private dev_A_rsa_key
+    dev_A_pub_rsa_key = PUBKEY(dev_A_rsa_key)
+]
+
+principal Device_B[
+    knows private dev_B_rsa_key
+    dev_B_pub_rsa_key = PUBKEY(dev_B_rsa_key)
+]
+
+Device_A → Device_B: [dev_A_pub_rsa_key]
+Device_B → Device_A: [dev_B_pub_rsa_key]
+
+principal Device_A[
+    generates dev_A_ecc_key
+    dev_A_ecc_key_pub = PUBKEY(dev_A_ecc_key)
+    dev_A_ecc_key_pub_signed = SIGN(dev_A_rsa_key, dev_A_ecc_key_pub)
+]
+
+principal Device_B[
+    generates dev_B_ecc_key
+    dev_B_ecc_key_pub = PUBKEY(dev_B_ecc_key)
+    dev_B_ecc_key_pub_signed = SIGN(dev_B_rsa_key, dev_B_ecc_key_pub)
+]
+
+Device_A → Device_B: dev_A_ecc_key_pub, dev_A_ecc_key_pub_signed
+Device_B → Device_A: dev_B_ecc_key_pub, dev_B_ecc_key_pub_signed
+
+principal Device_A[
+    _ = SIGNVERIF(dev_B_pub_rsa_key, dev_B_ecc_key_pub, dev_B_ecc_key_pub_signed)?
+    ss_a = DH_KEX(dev_B_ecc_key_pub, dev_A_ecc_key)
+]
+
+principal Device_B[
+    _ = SIGNVERIF(dev_A_pub_rsa_key, dev_A_ecc_key_pub, dev_A_ecc_key_pub_signed)?
+    ss_b = DH_KEX(dev_A_ecc_key_pub, dev_B_ecc_key)
+]
+
+principal Device_A[
+    knows private m1
+    generates seq_num
+    e1 = AEAD_ENC(ss_a, m1, seq_num)
+]
+
+Device_A → Device_B: seq_num, e1
+
+principal Device_B[
+    e1_dec = AEAD_DEC(ss_b, e1, seq_num)?
+]
+
+queries[
+    authentication? Device_A → Device_B: dev_A_pub_rsa_key
+    authentication? Device_B → Device_A: dev_B_pub_rsa_key
+
+    authentication? Device_A → Device_B: dev_A_ecc_key_pub
+    authentication? Device_B → Device_A: dev_B_ecc_key_pub
+
+    freshness? dev_A_ecc_key
+    freshness? dev_B_ecc_key
+
+    confidentiality? ss_a
+    confidentiality? ss_b
+
+    freshness? ss_a
+    freshness? ss_b
+
+    confidentiality? m1
+
+    authentication? Device_A → Device_B: e1
+    authentication? Device_A → Device_B: seq_num
+]
