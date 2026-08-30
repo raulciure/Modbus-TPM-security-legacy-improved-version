@@ -9,6 +9,9 @@ from src.modbus_tpm_security.security import RSA_key_read_and_load, RSA_key_expo
 from src.modbus_tpm_security.key_exchange import SOCKET_INT_SIZE, SOCKET_RECEIVE_SIZE
 
 
+PEERS_FILE_PATH = "./src/modbus_tpm_security/RSA_key_exchange/peers.csv"
+
+
 def store_peer_RSA_public_key(peer_public_key_bytes : bytes):
     ID_counter = 1 # NV index starts from 1 for peer keys (host keys on index offset 0)
     max_ID = 0
@@ -18,7 +21,7 @@ def store_peer_RSA_public_key(peer_public_key_bytes : bytes):
 
     # Find how many IDs are already in use
     try:
-        with open("peers.csv", "r", newline="") as peers_file:
+        with open(PEERS_FILE_PATH, "r", newline="") as peers_file:
             # Read peers from file into dictionary & check if peer public key is already in the list
             reader = csv.reader(peers_file, delimiter=":")
             for row in reader:
@@ -39,7 +42,7 @@ def store_peer_RSA_public_key(peer_public_key_bytes : bytes):
         if result == True:
             print("Peer public key successfully stored in TPM NV memory!")
             # Store the key hash & ID in dictionary CSV list
-            with open("peers.csv", "a", newline="") as peers_file:
+            with open(PEERS_FILE_PATH, "a", newline="") as peers_file:
                 # Write new entry into peers_file
                 writer = csv.writer(peers_file, delimiter=":")
                 writer.writerow((key_hash.hexdigest(), new_ID))

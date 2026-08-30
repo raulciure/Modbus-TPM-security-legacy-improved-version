@@ -4,14 +4,14 @@ import csv
 from Crypto.Hash import SHA256
 from src.modbus_tpm_security.security import RSA_key_read
 
-PEERS_FILE_PATH = "./RSA_key_exchange/"
+PEERS_FILE_PATH = "./src/modbus_tpm_security/RSA_key_exchange/peers.csv"
 
 
 def auth_RSA_public_key(public_key : bytes):
     public_key_hash = SHA256.new(public_key)
 
     try:
-        with open(PEERS_FILE_PATH + "peers.csv", "r", newline="") as peers_file:
+        with open(PEERS_FILE_PATH, "r", newline="") as peers_file:
             reader = csv.reader(peers_file, delimiter=":")
             for row in reader:
                 if row:
