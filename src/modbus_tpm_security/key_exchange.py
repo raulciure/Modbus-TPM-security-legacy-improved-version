@@ -1,7 +1,7 @@
 import socket
 from src.modbus_tpm_security.tpm_security import OWN_KEY_NV_INDEX
 from src.modbus_tpm_security.security import *
-from src.modbus_tpm_security.RSA_auth import auth_RSA_public_key
+from src.modbus_tpm_security.rsa_key_exchange.rsa_auth import auth_RSA_public_key
 
 
 SOCKET_RECEIVE_SIZE = 4096
