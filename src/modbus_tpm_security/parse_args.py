@@ -3,7 +3,7 @@ import os
 
 
 def parse_args_main(prog_path : str):
-    from src.modbus_tpm_security.gateway_common import REKEY_TIME
+    from src.modbus_tpm_security.gateway.gateway_common import REKEY_TIME
 
     parser = argparse.ArgumentParser(os.path.basename(prog_path))
     parser.add_argument("host", nargs="?", type=str, metavar="HOST_IP", help="Set custom host IP address, as string")

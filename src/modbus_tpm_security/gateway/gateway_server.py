@@ -1,10 +1,10 @@
-import src.modbus_tpm_security.gateway_common as gateway_common
+import modbus_tpm_security.gateway.gateway_common as gateway_common
 import socket
 import threading
 import src.modbus_tpm_security.utils as utils
 from src.modbus_tpm_security.key_exchange import key_exchange_routine, SOCKET_RECEIVE_SIZE
 from src.modbus_tpm_security.security import *
-from src.modbus_tpm_security.Perf_test import latency_test
+from src.modbus_tpm_security.perf_test import latency_test
 from time import sleep, time
 from src.modbus_tpm_security.parse_args import parse_args_main
 from types import SimpleNamespace
