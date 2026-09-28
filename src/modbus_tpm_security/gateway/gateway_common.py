@@ -14,6 +14,9 @@ REKEY_SWITCH = 0x03
 REKEY_SWITCH_ACK = 0x04
 REKEY_FAIL = 0x05
 
+SEQ_NUM_SIZE = 8
+CLIENT_MASK = 1 << (SEQ_NUM_SIZE * 8) - 1
+
 rec_rekey_flag = REKEY_NONE         # Received rekey flag (received from peer)
 sen_rekey_flag = REKEY_NONE         # Sent rekey flag (sent to peer)
 rekey_revert_flag = False           # Flag indicating whether it's necesary to revert to old sym_key due to rekey failure

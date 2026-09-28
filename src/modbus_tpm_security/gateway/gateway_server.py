@@ -7,7 +7,6 @@ from src.modbus_tpm_security.security import *
 from src.modbus_tpm_security.perf_test import latency_test
 from time import sleep, time
 from src.modbus_tpm_security.parse_args import parse_args_main
-from types import SimpleNamespace
 
 
 exit_flag = False
@@ -15,7 +14,7 @@ reset_flag = False
 
 session_salt = b""
 seq_num = SimpleNamespace(value=0)
-expected_seq_num = SimpleNamespace(value=0)
+expected_seq_num = SimpleNamespace(value=(0 | gateway_common.CLIENT_MASK))
 
 # source is the client gateway | dest is the server
 def forward_source_dest(args, source_socket : socket.socket, dest_socket : socket.socket, sym_key : bytes):

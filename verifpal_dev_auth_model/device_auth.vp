@@ -17,39 +17,49 @@ Device_B → Device_A: [dev_B_pub_rsa_key]
 principal Device_A[
     generates dev_A_ecc_key
     dev_A_ecc_key_pub = PUBKEY(dev_A_ecc_key)
-    dev_A_ecc_key_pub_signed = SIGN(dev_A_rsa_key, dev_A_ecc_key_pub)
+    dev_A_ecc_key_pub_signature = SIGN(dev_A_rsa_key, HASH(dev_A_ecc_key_pub))
 ]
 
 principal Device_B[
     generates dev_B_ecc_key
     dev_B_ecc_key_pub = PUBKEY(dev_B_ecc_key)
-    dev_B_ecc_key_pub_signed = SIGN(dev_B_rsa_key, dev_B_ecc_key_pub)
+    dev_B_ecc_key_pub_signature = SIGN(dev_B_rsa_key, HASH(dev_B_ecc_key_pub))
 ]
 
-Device_A → Device_B: dev_A_ecc_key_pub, dev_A_ecc_key_pub_signed
-Device_B → Device_A: dev_B_ecc_key_pub, dev_B_ecc_key_pub_signed
+Device_A → Device_B: [dev_A_ecc_key_pub], dev_A_ecc_key_pub_signature
+Device_B → Device_A: [dev_B_ecc_key_pub], dev_B_ecc_key_pub_signature
 
 principal Device_A[
-    _ = SIGNVERIF(dev_B_pub_rsa_key, dev_B_ecc_key_pub, dev_B_ecc_key_pub_signed)?
+    _ = SIGNVERIF(dev_B_pub_rsa_key, HASH(dev_B_ecc_key_pub), dev_B_ecc_key_pub_signature)?
     ss_a = DH_KEX(dev_B_ecc_key_pub, dev_A_ecc_key)
 ]
 
 principal Device_B[
-    _ = SIGNVERIF(dev_A_pub_rsa_key, dev_A_ecc_key_pub, dev_A_ecc_key_pub_signed)?
+    _ = SIGNVERIF(dev_A_pub_rsa_key, HASH(dev_A_ecc_key_pub), dev_A_ecc_key_pub_signature)?
     ss_b = DH_KEX(dev_A_ecc_key_pub, dev_B_ecc_key)
 ]
 
 principal Device_A[
-    knows private m1
-    generates seq_num
-    e1 = AEAD_ENC(ss_a, m1, seq_num)
+    knows private m_a
+    generates seq_num_or_timestamp_a, dev_A_aead_nonce
+    e_a = AEAD_ENC(ss_a, dev_A_aead_nonce, m_a, seq_num_or_timestamp_a)
 ]
 
-Device_A → Device_B: seq_num, e1
+Device_A → Device_B: seq_num_or_timestamp_a, e_a, dev_A_aead_nonce
 
 principal Device_B[
-    e1_dec = AEAD_DEC(ss_b, e1, seq_num)?
+    _ = AEAD_DEC(ss_b, dev_A_aead_nonce, e_a, seq_num_or_timestamp_a)?
+
+    // knows private m_b
+    // generates seq_num_or_timestamp_b, dev_B_aead_nonce
+    // e_b = AEAD_ENC(ss_b, dev_B_aead_nonce, m_b, seq_num_or_timestamp_b)
 ]
+
+// Device_B → Device_A: seq_num_or_timestamp_b, e_b, dev_B_aead_nonce
+
+// principal Device_A[
+//     _ = AEAD_DEC(ss_a, dev_B_aead_nonce, e_b, seq_num_or_timestamp_b)?
+// ]
 
 queries[
     authentication? Device_A → Device_B: dev_A_pub_rsa_key
@@ -64,11 +74,17 @@ queries[
     confidentiality? ss_a
     confidentiality? ss_b
 
+    equivalence? ss_a, ss_b
+    
     freshness? ss_a
     freshness? ss_b
 
-    confidentiality? m1
+    confidentiality? m_a
+    // confidentiality? m_b
 
-    authentication? Device_A → Device_B: e1
-    authentication? Device_A → Device_B: seq_num
+    authentication? Device_A → Device_B: e_a
+    authentication? Device_A → Device_B: seq_num_or_timestamp_a
+
+    // authentication? Device_B → Device_A: e_b
+    // authentication? Device_B → Device_A: seq_num_or_timestamp_b
 ]

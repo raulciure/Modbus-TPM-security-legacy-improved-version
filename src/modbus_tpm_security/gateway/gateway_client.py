@@ -13,7 +13,7 @@ exit_flag = False
 reset_flag = False
 
 session_salt = b""
-seq_num = SimpleNamespace(value=0)
+seq_num = SimpleNamespace(value=(0 | gateway_common.CLIENT_MASK))
 expected_seq_num = SimpleNamespace(value=0)
 
 # source is the client | dest is the server gateway

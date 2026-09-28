@@ -1,0 +1,109 @@
+attacker[active]
+
+
+principal Initiator[
+    knows private initiator_rsa_key
+    initiator_pub_rsa_key = PUBKEY(initiator_rsa_key)
+]
+
+principal Responder[
+    knows private responder_rsa_key
+    responder_pub_rsa_key = PUBKEY(responder_rsa_key)
+]
+
+Initiator → Responder: [initiator_pub_rsa_key]
+Responder → Initiator: [responder_pub_rsa_key]
+
+principal Initiator[
+    generates initiator_ecc_key_old
+    initiator_ecc_key_old_pub = PUBKEY(initiator_ecc_key_old)
+    initiator_ecc_key_old_pub_signature = SIGN(initiator_rsa_key, HASH(initiator_ecc_key_old_pub))
+]
+
+principal Responder[
+    generates responder_ecc_key_old
+    responder_ecc_key_old_pub = PUBKEY(responder_ecc_key_old)
+    responder_ecc_key_old_pub_signature = SIGN(responder_rsa_key, HASH(responder_ecc_key_old_pub))
+]
+
+Initiator → Responder: [initiator_ecc_key_old_pub], initiator_ecc_key_old_pub_signature
+Responder → Initiator: [responder_ecc_key_old_pub], responder_ecc_key_old_pub_signature
+
+principal Initiator[
+    _ = SIGNVERIF(responder_pub_rsa_key, HASH(responder_ecc_key_old_pub), responder_ecc_key_old_pub_signature)?
+    ss_init_old = DH_KEX(responder_ecc_key_old_pub, initiator_ecc_key_old)
+]
+
+principal Responder[
+    _ = SIGNVERIF(initiator_pub_rsa_key, HASH(initiator_ecc_key_old_pub), initiator_ecc_key_old_pub_signature)?
+    ss_resp_old = DH_KEX(initiator_ecc_key_old_pub, responder_ecc_key_old)
+]
+
+
+// -----------------------------------------
+// -------- Rekeying modeling below --------
+// -----------------------------------------
+
+
+principal Initiator[
+    knows public init_to_resp_nonce_domain
+    generates initiator_ecc_key_new, initiator_aead_nonce
+    initiator_ecc_key_new_pub = PUBKEY(initiator_ecc_key_new)
+
+    generates rekey_flag_initiator, message_initiator
+
+    initiator_sec_data = CONCAT(rekey_flag_initiator, message_initiator, initiator_ecc_key_new_pub)
+    initiator_sec_data_enc = AEAD_ENC(ss_init_old, initiator_aead_nonce, initiator_sec_data, init_to_resp_nonce_domain)
+
+    initiator_packet = CONCAT(initiator_aead_nonce, initiator_sec_data_enc)
+]
+
+principal Responder[
+    knows public resp_to_init_nonce_domain
+    generates responder_ecc_key_new, responder_aead_nonce
+    responder_ecc_key_new_pub = PUBKEY(responder_ecc_key_new)
+
+    generates rekey_flag_responder, message_responder
+
+    responder_sec_data = CONCAT(rekey_flag_responder, message_responder, responder_ecc_key_new_pub)
+    responder_sec_data_enc = AEAD_ENC(ss_resp_old, responder_aead_nonce, responder_sec_data, resp_to_init_nonce_domain)
+
+    responder_packet = CONCAT(responder_aead_nonce, responder_sec_data_enc)
+]
+
+Initiator → Responder: initiator_packet
+Responder → Initiator: responder_packet
+
+principal Initiator[
+    responder_aead_nonce_recv, responder_sec_data_enc_recv = SPLIT(responder_packet)?
+
+    responder_sec_data_recv = AEAD_DEC(ss_init_old, responder_aead_nonce_recv, responder_sec_data_enc_recv, resp_to_init_nonce_domain)?
+    _, _, responder_ecc_key_new_pub_recv = SPLIT(responder_sec_data_recv)?
+
+    new_ss_init = DH_KEX(responder_ecc_key_new_pub_recv, initiator_ecc_key_new)
+]
+
+principal Responder[
+    initiator_aead_nonce_recv, initiator_sec_data_recv_enc = SPLIT(initiator_packet)?
+
+    initiator_sec_data_recv = AEAD_DEC(ss_resp_old, initiator_aead_nonce_recv, initiator_sec_data_recv_enc, init_to_resp_nonce_domain)?
+    _, _, initiator_ecc_key_new_pub_recv = SPLIT(initiator_sec_data_recv)?
+
+    new_ss_resp = DH_KEX(initiator_ecc_key_new_pub_recv, responder_ecc_key_new)
+]
+
+queries[
+    authentication? Initiator → Responder: initiator_packet
+    authentication? Responder → Initiator: responder_packet
+
+    freshness? initiator_ecc_key_new
+    freshness? responder_ecc_key_new
+
+    confidentiality? new_ss_init
+    confidentiality? new_ss_resp
+
+    equivalence? new_ss_init, new_ss_resp
+
+    freshness? new_ss_init
+    freshness? new_ss_resp
+]
