@@ -1,5 +1,3 @@
-# module containing functions used for security operations
-
 from src.modbus_tpm_security.tpm_security import get_random, read_TPM_nv
 from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
@@ -39,17 +37,20 @@ def derivate_session_salt(session_secret, size = 4):
 
 # function that encrypts message using AES-GCM AEAD
 # returns serialized nonce & enc_tuple
-def AES_encrypt_and_digest(args, key : bytes, msg : bytes, session_salt : bytes | None = None, seq_num : SimpleNamespace | None = None):
+def AES_encrypt_and_digest(args, key : bytes, msg : bytes, rekey_flag : int, dh_public_key : bytes, session_salt : bytes | None = None, seq_num : SimpleNamespace | None = None):
     if not args.use_seq_num_replay_resistance:     # Use timestamps
         nonce = get_random_bytes(12)
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+
+        cipher.update(rekey_flag.to_bytes())
+        cipher.update(dh_public_key)
 
         timestamp = int(time()).to_bytes(4)
         cipher.update(timestamp)
 
         enc_tuple = cipher.encrypt_and_digest(pad(msg, AES.block_size))
 
-        enc_data = dumps((nonce, timestamp, enc_tuple))
+        enc_data = dumps((rekey_flag, nonce, timestamp, enc_tuple, dh_public_key))
 
     else:                                               # Use sequence numbers
         if session_salt is None or seq_num is None:
@@ -64,22 +65,25 @@ def AES_encrypt_and_digest(args, key : bytes, msg : bytes, session_salt : bytes 
 
         cipher.update(seq_num_bytes)
 
+        cipher.update(rekey_flag.to_bytes())
+        cipher.update(dh_public_key)
+
         enc_tuple = cipher.encrypt_and_digest(pad(msg, AES.block_size))
 
-        enc_data = dumps((seq_num_bytes, enc_tuple))
+        enc_data = dumps((rekey_flag, seq_num_bytes, enc_tuple, dh_public_key))
 
     return enc_data
 
 
 # function that decrypts & authenticates message using AES-GCM AEAD
 # returns original message
-def AES_decrypt_and_verify(args, key : bytes, enc_data : bytes, session_salt : bytes | None = None, expected_seq_num : SimpleNamespace | None = None):
+def AES_decrypt_and_verify(args, key : bytes, sec_data : bytes, session_salt : bytes | None = None, expected_seq_num : SimpleNamespace | None = None):
     if not args.use_seq_num_replay_resistance:     # Use timestamps
         TIMESTAMP_TOLERANCE = 1     # Tolerance for timestamp deviation (in seconds)
         if args.set_timestamp_tolerance:
             TIMESTAMP_TOLERANCE = args.set_timestamp_tolerance
 
-        (nonce, timestamp_msg, (ciphertext, MAC_tag)) = loads(enc_data)
+        (rekey_flag_msg, nonce, timestamp_msg, (ciphertext, MAC_tag), dh_public_key_msg) = loads(sec_data)
 
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
 
@@ -90,17 +94,20 @@ def AES_decrypt_and_verify(args, key : bytes, enc_data : bytes, session_salt : b
                 print("!!! Timestamp is different !!!")
                 raise ValueError
 
+        cipher.update(rekey_flag_msg.to_bytes())
+        cipher.update(dh_public_key_msg)
+
         cipher.update(timestamp_msg)
 
         msg = unpad(cipher.decrypt_and_verify(ciphertext, MAC_tag), AES.block_size)
         
-        return msg
+        return (rekey_flag_msg, msg, dh_public_key_msg)
 
     else:
         if session_salt is None or expected_seq_num is None:
             raise ValueError("session_salt and/or seq_num are None!")
         
-        (seq_num_bytes_msg, (ciphertext, MAC_tag)) = loads(enc_data)
+        (rekey_flag_msg, seq_num_bytes_msg, (ciphertext, MAC_tag), dh_public_key_msg) = loads(sec_data)
 
         seq_num_msg = struct.unpack("!Q", seq_num_bytes_msg)[0]
 
@@ -116,9 +123,12 @@ def AES_decrypt_and_verify(args, key : bytes, enc_data : bytes, session_salt : b
 
         cipher.update(seq_num_bytes_msg)
 
+        cipher.update(rekey_flag_msg.to_bytes())
+        cipher.update(dh_public_key_msg)
+
         msg = unpad(cipher.decrypt_and_verify(ciphertext, MAC_tag), AES.block_size)
 
-        return msg
+        return (rekey_flag_msg, msg, dh_public_key_msg)
 
 
 # function that encrypts message using RSA - PKCS1_OAEP with a public key and signs encrypted message using PKCS1_PSS with a private key
@@ -195,7 +205,7 @@ def RSA_key_serialize(encoded_key : bytes):
     return serialized_data
 
 
-# Export key to DER format wtih option to return serialized bytes of tuple containing size and the formated key (used for TPM NV storage)
+# Export key to DER format wtih option to return serialized bytes of tuple containing size and the formatted key (used for TPM NV storage)
 def RSA_key_export(key : RSA.RsaKey, serialize_size=False):
     exported_key = key.export_key(format='DER', passphrase=None, pkcs=8, protection='PBKDF2WithHMAC-SHA512AndAES256-CBC', randfunc=get_random)  # type: ignore
 

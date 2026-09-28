@@ -2,7 +2,7 @@ from src.modbus_tpm_security.security import AES_encrypt_and_digest, AES_decrypt
 from types import SimpleNamespace
 from random import randbytes, randrange
 
-TIMESTAMP_OPERATION = True
+TIMESTAMP_OPERATION = False
 
 
 if TIMESTAMP_OPERATION is True:
@@ -11,18 +11,24 @@ if TIMESTAMP_OPERATION is True:
     msg = b"Hello there!"
     key = b"vfbxEsPCj1g46wlNQSlUdEUe7U4nFb59"
 
+    rekey_flag = 0
+    dh_public_key = randbytes(32)
+
     print("msg = ", msg)
     print("key = ", key)
+    print("rekey_flag = ", rekey_flag)
+    print("dh_public_key = ", dh_public_key)
 
-    enc_msg = AES_encrypt_and_digest(args, key, msg)
+    enc_msg = AES_encrypt_and_digest(args, key, msg, rekey_flag, dh_public_key)
 
     print("enc_msg_size = ", len(enc_msg))
 
     print("enc_msg = ", enc_msg.hex(' '))
 
-    dec_msg = AES_decrypt_and_verify(args, key, enc_msg)
-
+    auth_recv_rekey_flag, dec_msg, recv_dh_public_key = AES_decrypt_and_verify(args, key, enc_msg) 
+    print("auth_recv_rekey_flag = ", auth_recv_rekey_flag)
     print("dec_msg = ", dec_msg)
+    print("recv_dh_public_key = ", recv_dh_public_key)
 
     print("\n------- RANDOM MESSAGE TEST FOLLOWS -------\n")
 
@@ -30,13 +36,15 @@ if TIMESTAMP_OPERATION is True:
         msg = randrange(1, 10000)
         print("msg = ", msg)
 
-        enc_msg = AES_encrypt_and_digest(args, key, msg.to_bytes(4))
+        enc_msg = AES_encrypt_and_digest(args, key, msg.to_bytes(4), rekey_flag, b'')
 
         print("enc_msg_size = ", len(enc_msg))
         print("enc_msg = ", enc_msg.hex(' '))
 
-        dec_msg = AES_decrypt_and_verify(args, key, enc_msg)
+        auth_recv_rekey_flag, dec_msg, recv_dh_public_key = AES_decrypt_and_verify(args, key, enc_msg)
+        print("auth_recv_rekey_flag = ", auth_recv_rekey_flag)
         print("dec_msg = ", int.from_bytes(dec_msg))
+        print("recv_dh_public_key = ", recv_dh_public_key)
 
         print("\n----------------------------------------------------\n")
 
@@ -49,19 +57,25 @@ else:
     msg = b"Hello there!"
     key = b"vfbxEsPCj1g46wlNQSlUdEUe7U4nFb59"
 
+    rekey_flag = 0
+    dh_public_key = randbytes(32)
+
     print("msg = ", msg)
     print("key = ", key)
     print("session_salt = ", session_salt.hex(' '))
+    print("rekey_flag = ", rekey_flag)
+    print("dh_public_key = ", dh_public_key)
 
-    enc_msg = AES_encrypt_and_digest(args, key, msg, session_salt, seq_num)
+    enc_msg = AES_encrypt_and_digest(args, key, msg, rekey_flag, dh_public_key, session_salt, seq_num)
 
     print("enc_msg_size = ", len(enc_msg))
 
     print("enc_msg = ", enc_msg.hex(' '))
 
-    dec_msg = AES_decrypt_and_verify(args, key, enc_msg, session_salt, expected_seq_num)
-
+    auth_recv_rekey_flag, dec_msg, recv_dh_public_key = AES_decrypt_and_verify(args, key, enc_msg, session_salt, expected_seq_num)
+    print("auth_recv_rekey_flag = ", auth_recv_rekey_flag)
     print("dec_msg = ", dec_msg)
+    print("recv_dh_public_key = ", recv_dh_public_key)
 
     print("\n------- RANDOM MESSAGE TEST FOLLOWS -------\n")
 
@@ -69,12 +83,14 @@ else:
         msg = randrange(1, 10000)
         print("msg = ", msg)
 
-        enc_msg = AES_encrypt_and_digest(args, key, msg.to_bytes(4), session_salt, seq_num)
+        enc_msg = AES_encrypt_and_digest(args, key, msg.to_bytes(4), rekey_flag, b'', session_salt, seq_num)
 
         print("enc_msg_size = ", len(enc_msg))
         print("enc_msg = ", enc_msg.hex(' '))
 
-        dec_msg = AES_decrypt_and_verify(args, key, enc_msg, session_salt, expected_seq_num)
+        auth_recv_rekey_flag, dec_msg, recv_dh_public_key = AES_decrypt_and_verify(args, key, enc_msg, session_salt, expected_seq_num)
+        print("auth_recv_rekey_flag = ", auth_recv_rekey_flag)
         print("dec_msg = ", int.from_bytes(dec_msg))
+        print("recv_dh_public_key = ", recv_dh_public_key)
 
         print("\n----------------------------------------------------\n")

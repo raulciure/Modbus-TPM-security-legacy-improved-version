@@ -19,6 +19,7 @@ expected_seq_num = SimpleNamespace(value=(0 | gateway_common.CLIENT_MASK))
 # source is the client gateway | dest is the server
 def forward_source_dest(args, source_socket : socket.socket, dest_socket : socket.socket, sym_key : bytes):
     global reset_flag
+    global rec_rekey_flag, ecc_pub_key_peer
 
     while not exit_flag and not reset_flag:
         try:
@@ -47,15 +48,15 @@ def forward_source_dest(args, source_socket : socket.socket, dest_socket : socke
                 if args.measure_perf:
                     #### Start measuring latency
                     start_time = latency_test.perf_counter()
-                    comb_data = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
+                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
                     #### Stop measuring latency
                     stop_time = latency_test.perf_counter()
                     [latency_test.decrypt_average_latency, latency_test.decrypt_average_counter] = latency_test.add_to_average(latency_test.decrypt_average_latency, latency_test.decrypt_average_counter, stop_time - start_time)
                 else:
-                    comb_data = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
+                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
             except(ValueError):     # Peer might have failed to change to new key => revert to old key as well and try again
                 if gateway_common.old_sym_key is not None:
-                    comb_data = AES_decrypt_and_verify(args, gateway_common.old_sym_key, enc_data, session_salt, expected_seq_num)     # If old_sym_key exists, try to decrypt using it
+                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, gateway_common.old_sym_key, enc_data, session_salt, expected_seq_num)     # If old_sym_key exists, try to decrypt using it
                     gateway_common.rekey_revert_flag = True
                     print("*** Rekeying failed! Reverting to old key! ***")
                 else:
@@ -63,16 +64,14 @@ def forward_source_dest(args, source_socket : socket.socket, dest_socket : socke
 
             if not args.disable_rekeying:
                 try:
-                    data = gateway_common.rekey_receiver(sym_key, comb_data)
+                    gateway_common.rekey_set_flags(sym_key)
                 except ValueError:
                     print("*** Rekey flag is incorrect! ***\nResetting connection...")
                     data = gateway_common.SOCKET_RESET_MESSAGE  # Reset connection if rekey flag is incorrect (because the nature of the plaintext cannot be determined)
-            else:
-                data = comb_data
             
-            print("\nReceived from source (pre-split): ", comb_data)
-            print("Received rekey flag: ", comb_data[0])
-            print("Received from source (post-split): ", data, "\n")
+            print("\nReceived from source: ", data)
+            print("Received rekey flag: ", rec_rekey_flag)
+            print("Received from source: ", ecc_pub_key_peer, "\n")
 
             if(data == gateway_common.SOCKET_RESET_MESSAGE):
                 reset_flag = True
@@ -103,13 +102,14 @@ def forward_dest_source(args, source_socket : socket.socket, dest_socket : socke
         except ConnectionError:
             reset_flag = True
             print("Destination socket (server) error or disconnection. Resetting connection...")
-            source_socket.sendall(AES_encrypt_and_digest(args, sym_key, gateway_common.SOCKET_RESET_MESSAGE, session_salt, seq_num))
+            source_socket.sendall(AES_encrypt_and_digest(args, sym_key, gateway_common.SOCKET_RESET_MESSAGE, 0, b'', session_salt, seq_num))
             break
 
         if not args.disable_rekeying:
-            comb_data = gateway_common.rekey_sender(data)
+            (sen_rekey_flag, ecc_pub_key) = gateway_common.get_rekey_data()
         else:
-            comb_data = data
+            sen_rekey_flag = 0
+            ecc_pub_key = b''
 
         # Change sym_key with the new key
         if not args.disable_rekeying:
@@ -119,19 +119,19 @@ def forward_dest_source(args, source_socket : socket.socket, dest_socket : socke
                     sym_key = new_sym_key
                     print("\t* New symmetric key applied! *")
 
-        print("\nReceived from destination (pre-comb): ", data)
-        print("Sent rekey flag: ", comb_data[0])
-        print("To send to source (post-comb): ", comb_data, "\n")
+        print("\nReceived from destination : ", data)
+        print("Sent rekey flag: ", sen_rekey_flag)
+        print("ecc_pub_key: ", ecc_pub_key, "\n")
 
         if args.measure_perf:
             #### Start measuring latency
             start_time = latency_test.perf_counter()
-            enc_data = AES_encrypt_and_digest(args, sym_key, comb_data, session_salt, seq_num)
+            enc_data = AES_encrypt_and_digest(args, sym_key, data, sen_rekey_flag, ecc_pub_key, session_salt, seq_num)
             #### Stop measuring latency
             stop_time = latency_test.perf_counter()
             [latency_test.encrpyt_average_latency, latency_test.encrypt_average_counter] = latency_test.add_to_average(latency_test.encrpyt_average_latency, latency_test.encrypt_average_counter, stop_time - start_time)
         else:
-            enc_data = AES_encrypt_and_digest(args, sym_key, comb_data, session_salt, seq_num)
+            enc_data = AES_encrypt_and_digest(args, sym_key, data, sen_rekey_flag, ecc_pub_key, session_salt, seq_num)
 
         try:
             source_socket.sendall(enc_data)
@@ -141,7 +141,7 @@ def forward_dest_source(args, source_socket : socket.socket, dest_socket : socke
 
     if exit_flag or reset_flag:
         try:
-            source_socket.sendall(AES_encrypt_and_digest(args, sym_key, gateway_common.SOCKET_RESET_MESSAGE, session_salt, seq_num))
+            source_socket.sendall(AES_encrypt_and_digest(args, sym_key, gateway_common.SOCKET_RESET_MESSAGE, 0, b'', session_salt, seq_num))
         except(BrokenPipeError):
             print("*** Unable to send resset message to source socket (client gateway) - BrokenPipeError ***")
 

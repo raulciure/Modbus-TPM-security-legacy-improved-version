@@ -19,9 +19,9 @@ CLIENT_MASK = 1 << (SEQ_NUM_SIZE * 8) - 1
 
 rec_rekey_flag = REKEY_NONE         # Received rekey flag (received from peer)
 sen_rekey_flag = REKEY_NONE         # Sent rekey flag (sent to peer)
-rekey_revert_flag = False           # Flag indicating whether it's necesary to revert to old sym_key due to rekey failure
+rekey_revert_flag = False           # Flag indicating whether it's necessary to revert to old sym_key due to rekey failure
 is_rekey_initiator : bool | None    # Flag indicating whether the device is the one that initiated the rekeying process
-delayed_rekey_flag = False    # Flag indicating whether change to new key should happen after one cycle or in this moment (different for initiator and replier)
+delayed_rekey_flag = False          # Flag indicating whether change to new key should happen after one cycle or in this moment (different for initiator and replier)
 
 ecc_pub_key_peer = None
 ecc_key_own = None
@@ -33,62 +33,16 @@ current_sym_key = None
 rekey_switch_time : int
 
 
-# Split (deserialise) combined data in a tuple
-# returns (rekey_flag, data, ecc_pub_key | None)
-# throws ValueError if rekey_flag value is not known
-def split_rekey_data(comb_data : bytes):
-    rekey_flag = comb_data[0]
-
-    if rekey_flag == REKEY_INIT or rekey_flag == REKEY_REPLY:
-        data = (comb_data[1:])[:-32]    # Slice original data by removing first byte (REKEY field) and last 32 bytes (ECC_public_key)
-        ecc_pub_key = comb_data[-32:]        # Get the ECC_pub_key by extracting the last 32 bytes from data
-        return (rekey_flag, data, ecc_pub_key)
-    elif rekey_flag in (REKEY_NONE, REKEY_SWITCH, REKEY_SWITCH_ACK, REKEY_FAIL):
-        data = comb_data[1:]    # Slice original data by removing first byte (REKEY field)
-        return (rekey_flag, data, None)
-    else:
-        raise ValueError
-
-
-# Combine (serialise) rekey_flag, data, and ecc_pub_key_own to bytes for transmission over network
-# returns bytes representing combined sequential bytes of rekey_flag, data, ecc_pub_key_own
-def combine_rekey_data(rekey_flag : int, data : bytes, ecc_pub_key_own : bytes | None = None):  
-    if rekey_flag == REKEY_INIT or rekey_flag == REKEY_REPLY:
-        if ecc_pub_key_own is not None:
-            return rekey_flag.to_bytes() + data + ecc_pub_key_own
-        else:
-            print("*** ecc_pub_key_own is None when it should have been bytes! ***")
-    return rekey_flag.to_bytes() + data
-
-
-# Process received rekey plain text and set global flags and variables accordingly
-# returns (current_sym_key, data)
-def rekey_receiver(current_sym_key_arg : bytes, comb_data : bytes):
-    global rec_rekey_flag, ecc_pub_key_peer, new_sym_key
-
-    try:
-        split_result = split_rekey_data(comb_data)
-        if split_result[2] is not None:
-            (rec_rekey_flag, data, ecc_pub_key_peer) = split_result
-        else:
-            (rec_rekey_flag, data) = split_result[:2]
-
-        rekey_set_flags(current_sym_key_arg)
-
-        return data
-    except ValueError:
-        raise ValueError
-
-
 # Process to-send rekey plain text and set global flags and variables accordingly
 # returns (current_sym_key, comb_data)
-def rekey_sender(data : bytes):
+def get_rekey_data():
     global sen_rekey_flag
     global ecc_key_own
 
-    comb_data = combine_rekey_data(sen_rekey_flag, data, ECC_key_export(ecc_key_own.public_key()) if (ecc_key_own is not None and sen_rekey_flag in (REKEY_INIT, REKEY_REPLY)) else None)
+    # comb_data = combine_rekey_data(sen_rekey_flag, data, ECC_key_export(ecc_key_own.public_key()) if (ecc_key_own is not None and sen_rekey_flag in (REKEY_INIT, REKEY_REPLY)) else b'')
+    return (sen_rekey_flag, ECC_key_export(ecc_key_own.public_key()) if (ecc_key_own is not None and sen_rekey_flag in (REKEY_INIT, REKEY_REPLY)) else b'')
 
-    return comb_data
+    # return comb_data
 
 
 def rekey_set_flags(sym_key_arg : bytes):
