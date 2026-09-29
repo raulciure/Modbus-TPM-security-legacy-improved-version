@@ -46,46 +46,54 @@ principal Responder[
 
 
 principal Initiator[
+    knows public init_to_resp_rekey_flag_domain
+
     generates initiator_ecc_key_new, initiator_aead_nonce
     initiator_ecc_key_new_pub = PUBKEY(initiator_ecc_key_new)
 
-    generates rekey_flag_initiator, message_initiator, timestamp_init
+    generates message_initiator, timestamp_init
 
-    initiator_sec_data = CONCAT(rekey_flag_initiator, message_initiator, initiator_ecc_key_new_pub)
-    initiator_sec_data_enc = AEAD_ENC(ss_init_old, initiator_aead_nonce, initiator_sec_data, timestamp_init)
+    initiator_ad = CONCAT(init_to_resp_rekey_flag_domain, timestamp_init, initiator_ecc_key_new_pub)
+    initiator_sec_data_enc = AEAD_ENC(ss_init_old, initiator_aead_nonce, message_initiator, initiator_ad)
 
-    initiator_packet = CONCAT(initiator_aead_nonce, initiator_sec_data_enc, timestamp_init)
+    initiator_packet = CONCAT(initiator_aead_nonce, initiator_sec_data_enc, initiator_ad)
 ]
 
 principal Responder[
-    generates responder_ecc_key_new, responder_aead_nonce, timestamp_resp
+    knows public resp_to_init_rekey_flag_domain
+    
+    generates responder_ecc_key_new, responder_aead_nonce
     responder_ecc_key_new_pub = PUBKEY(responder_ecc_key_new)
 
-    generates rekey_flag_responder, message_responder
+    generates message_responder, timestamp_resp
 
-    responder_sec_data = CONCAT(rekey_flag_responder, message_responder, responder_ecc_key_new_pub)
-    responder_sec_data_enc = AEAD_ENC(ss_resp_old, responder_aead_nonce, responder_sec_data, timestamp_resp)
+    responder_ad = CONCAT(resp_to_init_rekey_flag_domain, timestamp_resp, responder_ecc_key_new_pub)
+    responder_sec_data_enc = AEAD_ENC(ss_resp_old, responder_aead_nonce, message_responder, responder_ad)
 
-    responder_packet = CONCAT(responder_aead_nonce, responder_sec_data_enc, timestamp_resp)
+    responder_packet = CONCAT(responder_aead_nonce, responder_sec_data_enc, responder_ad)
 ]
 
 Initiator → Responder: initiator_packet
 Responder → Initiator: responder_packet
 
 principal Initiator[
-    responder_aead_nonce_recv, responder_sec_data_enc_recv, timestamp_resp_recv = SPLIT(responder_packet)?
+    responder_aead_nonce_recv, responder_sec_data_enc_recv, responder_ad_recv = SPLIT(responder_packet)
 
-    responder_sec_data_recv = AEAD_DEC(ss_init_old, responder_aead_nonce_recv, responder_sec_data_enc_recv, timestamp_resp_recv)?
-    _, _, responder_ecc_key_new_pub_recv = SPLIT(responder_sec_data_recv)?
+    responder_sec_data_recv = AEAD_DEC(ss_init_old, responder_aead_nonce_recv, responder_sec_data_enc_recv, responder_ad_recv)?
+    responder_rekey_flag_recv, _, responder_ecc_key_new_pub_recv = SPLIT(responder_ad_recv)?
+
+    _ = ASSERT(responder_rekey_flag_recv, resp_to_init_rekey_flag_domain)?
 
     new_ss_init = DH_KEX(responder_ecc_key_new_pub_recv, initiator_ecc_key_new)
 ]
 
 principal Responder[
-    initiator_aead_nonce_recv, initiator_sec_data_recv_enc, timestamp_init_recv = SPLIT(initiator_packet)?
+    initiator_aead_nonce_recv, initiator_sec_data_recv_enc, initiator_ad_recv = SPLIT(initiator_packet)
 
-    initiator_sec_data_recv = AEAD_DEC(ss_resp_old, initiator_aead_nonce_recv, initiator_sec_data_recv_enc, timestamp_init_recv)?
-    _, _, initiator_ecc_key_new_pub_recv = SPLIT(initiator_sec_data_recv)?
+    initiator_sec_data_recv = AEAD_DEC(ss_resp_old, initiator_aead_nonce_recv, initiator_sec_data_recv_enc, initiator_ad_recv)?
+    initiator_rekey_flag_recv, _, initiator_ecc_key_new_pub_recv = SPLIT(initiator_ad_recv)?
+
+    _ = ASSERT(initiator_rekey_flag_recv, init_to_resp_rekey_flag_domain)?
 
     new_ss_resp = DH_KEX(initiator_ecc_key_new_pub_recv, responder_ecc_key_new)
 ]

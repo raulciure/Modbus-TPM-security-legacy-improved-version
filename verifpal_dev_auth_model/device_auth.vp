@@ -49,17 +49,7 @@ Device_A → Device_B: seq_num_or_timestamp_a, e_a, dev_A_aead_nonce
 
 principal Device_B[
     _ = AEAD_DEC(ss_b, dev_A_aead_nonce, e_a, seq_num_or_timestamp_a)?
-
-    // knows private m_b
-    // generates seq_num_or_timestamp_b, dev_B_aead_nonce
-    // e_b = AEAD_ENC(ss_b, dev_B_aead_nonce, m_b, seq_num_or_timestamp_b)
 ]
-
-// Device_B → Device_A: seq_num_or_timestamp_b, e_b, dev_B_aead_nonce
-
-// principal Device_A[
-//     _ = AEAD_DEC(ss_a, dev_B_aead_nonce, e_b, seq_num_or_timestamp_b)?
-// ]
 
 queries[
     authentication? Device_A → Device_B: dev_A_pub_rsa_key
@@ -80,11 +70,7 @@ queries[
     freshness? ss_b
 
     confidentiality? m_a
-    // confidentiality? m_b
 
     authentication? Device_A → Device_B: e_a
     authentication? Device_A → Device_B: seq_num_or_timestamp_a
-
-    // authentication? Device_B → Device_A: e_b
-    // authentication? Device_B → Device_A: seq_num_or_timestamp_b
 ]
