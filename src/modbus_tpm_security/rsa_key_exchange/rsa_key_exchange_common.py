@@ -5,7 +5,7 @@ import csv
 from src.modbus_tpm_security.parse_args import parse_args_RSA_key_exchange
 
 from src.modbus_tpm_security.tpm_security import store_TPM_nv, OWN_KEY_NV_INDEX
-from src.modbus_tpm_security.security import RSA_key_read_and_load, RSA_key_export, RSA_key_serialize
+from src.modbus_tpm_security.security import RSA_key_read_and_load, RSA_key_export, RSA_key_serialize, get_keys_fingerprint
 from src.modbus_tpm_security.key_exchange import SOCKET_INT_SIZE, SOCKET_RECEIVE_SIZE
 
 
@@ -37,7 +37,7 @@ def store_peer_RSA_public_key(peer_public_key_bytes : bytes):
 
     if found_flag == False:     # Public key is not already known
         new_ID = max_ID + 1
-        # Store serialized DER formated peer_public_key in TPM NV memory at next available index
+        # Store serialized DER formatted peer_public_key in TPM NV memory at next available index
         result = store_TPM_nv(RSA_key_serialize(peer_public_key_bytes), new_ID)
         if result == True:
             print("Peer public key successfully stored in TPM NV memory!")
@@ -67,17 +67,23 @@ def RSA_public_key_exchange(conn_socket : socket.socket):
         conn_socket.sendall(RSA_key_bytes_public_own)
         print("Sent own RSA public key!")
 
-        # then recieves the public key from peer
+        # then receives the public key from peer
         RSA_key_bytes_public_peer = conn_socket.recv(SOCKET_RECEIVE_SIZE)
-        print("Recieved peer RSA public key!")
+        print("Received peer RSA public key!")
     else:   # peer sends the key first
         # host receives the public key from peer
         RSA_key_bytes_public_peer = conn_socket.recv(SOCKET_RECEIVE_SIZE)
-        print("Recieved peer RSA public key!")
+        print("Received peer RSA public key!")
 
         # then sends its public key to peer
         conn_socket.sendall(RSA_key_bytes_public_own)
         print("Sent own RSA public key!")
+
+    print("Exchange fingerprint:\n", get_keys_fingerprint(RSA_key_bytes_public_own, RSA_key_bytes_public_peer).hex(), "\n")
+    user_input = input("Confirm pairing? [Y/n]")
+    if user_input == "n":
+        print("Pairing unsuccessful!")
+        return
 
     # Store peer key in TPM
     store_peer_RSA_public_key(RSA_key_bytes_public_peer)

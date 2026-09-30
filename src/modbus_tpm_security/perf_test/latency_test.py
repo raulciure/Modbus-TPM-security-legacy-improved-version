@@ -3,7 +3,7 @@ from time import perf_counter
 
 
 key_exchange_latency = 0
-encrpyt_average_latency = 0
+encrypt_average_latency = 0
 encrypt_average_counter = 0
 decrypt_average_latency = 0
 decrypt_average_counter = 0
@@ -14,7 +14,7 @@ def export_to_file():
         output_file.write("#############################################\n")
         output_file.write(datetime.datetime.now().isoformat(' ', 'seconds') + "\n")
         output_file.write(f"Key exchange latency:     \t{key_exchange_latency}\n")
-        output_file.write(f"Encrypt & digest latency: \t{encrpyt_average_latency}\n")
+        output_file.write(f"Encrypt & digest latency: \t{encrypt_average_latency}\n")
         output_file.write(f"Decrypt & verify latency: \t{decrypt_average_latency}\n\n")
 
 # Function for adding a new value to an existing average of "size" numbers

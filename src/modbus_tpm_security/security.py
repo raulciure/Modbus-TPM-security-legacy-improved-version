@@ -131,6 +131,18 @@ def AES_decrypt_and_verify(args, key : bytes, sec_data : bytes, session_salt : b
         return (rekey_flag_msg, msg, dh_public_key_msg)
 
 
+def get_keys_fingerprint(*keys : bytes) -> bytes:
+    # Convert to standard (canonical) form
+    standard_ordered_keys = sorted(keys)
+
+    data = b''
+
+    for key in standard_ordered_keys:
+        data += len(key).to_bytes(4) + key
+
+    return SHA256.new(data).digest()
+
+
 # function that encrypts message using RSA - PKCS1_OAEP with a public key and signs encrypted message using PKCS1_PSS with a private key
 # returns serialized tuple of encrypted message and signature
 def RSA_encrypt_and_sign(enc_key, sign_key, msg : bytes):

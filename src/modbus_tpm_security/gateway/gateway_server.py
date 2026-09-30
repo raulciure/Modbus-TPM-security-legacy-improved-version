@@ -129,7 +129,7 @@ def forward_dest_source(args, source_socket : socket.socket, dest_socket : socke
             enc_data = AES_encrypt_and_digest(args, sym_key, data, sen_rekey_flag, ecc_pub_key, session_salt, seq_num)
             #### Stop measuring latency
             stop_time = latency_test.perf_counter()
-            [latency_test.encrpyt_average_latency, latency_test.encrypt_average_counter] = latency_test.add_to_average(latency_test.encrpyt_average_latency, latency_test.encrypt_average_counter, stop_time - start_time)
+            [latency_test.encrypt_average_latency, latency_test.encrypt_average_counter] = latency_test.add_to_average(latency_test.encrypt_average_latency, latency_test.encrypt_average_counter, stop_time - start_time)
         else:
             enc_data = AES_encrypt_and_digest(args, sym_key, data, sen_rekey_flag, ecc_pub_key, session_salt, seq_num)
 
