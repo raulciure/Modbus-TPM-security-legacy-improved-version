@@ -6,10 +6,11 @@ from src.modbus_tpm_security.parse_args import parse_args_RSA_key_exchange
 
 from src.modbus_tpm_security.tpm_security import store_TPM_nv, OWN_KEY_NV_INDEX
 from src.modbus_tpm_security.security import RSA_key_read_and_load, RSA_key_export, RSA_key_serialize, get_keys_fingerprint
-from src.modbus_tpm_security.key_exchange import SOCKET_INT_SIZE, SOCKET_RECEIVE_SIZE
+from src.modbus_tpm_security.key_exchange import SOCKET_RECEIVE_SIZE
+from pathlib import Path
 
 
-PEERS_FILE_PATH = "./src/modbus_tpm_security/RSA_key_exchange/peers.csv"
+PEERS_FILE_PATH = Path(__file__).resolve().parent / "peers.csv"
 
 
 def store_peer_RSA_public_key(peer_public_key_bytes : bytes):
@@ -79,7 +80,7 @@ def RSA_public_key_exchange(conn_socket : socket.socket):
         conn_socket.sendall(RSA_key_bytes_public_own)
         print("Sent own RSA public key!")
 
-    print("Exchange fingerprint:\n", get_keys_fingerprint(RSA_key_bytes_public_own, RSA_key_bytes_public_peer).hex(), "\n")
+    print("Exchange fingerprint:\n\t", get_keys_fingerprint(RSA_key_bytes_public_own, RSA_key_bytes_public_peer).hex(), "\n")
     user_input = input("Confirm pairing? [Y/n]")
     if user_input == "n":
         print("Pairing unsuccessful!")

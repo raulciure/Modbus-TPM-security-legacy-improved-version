@@ -1,4 +1,4 @@
-import modbus_tpm_security.gateway.gateway_common as gateway_common
+import src.modbus_tpm_security.gateway.gateway_common as gateway_common
 import socket
 import threading
 import src.modbus_tpm_security.utils as utils

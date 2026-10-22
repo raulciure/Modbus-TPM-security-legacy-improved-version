@@ -3,8 +3,11 @@
 import csv
 from Crypto.Hash import SHA256
 from src.modbus_tpm_security.security import RSA_key_read
+# from src.modbus_tpm_security.rsa_key_exchange.rsa_key_exchange_common import PEERS_FILE_PATH
+from pathlib import Path
 
-PEERS_FILE_PATH = "./src/modbus_tpm_security/RSA_key_exchange/peers.csv"
+
+PEERS_FILE_PATH = Path(__file__).resolve().parent / "peers.csv"
 
 
 def auth_RSA_public_key(public_key : bytes):
