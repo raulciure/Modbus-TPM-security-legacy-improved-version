@@ -19,7 +19,6 @@ expected_seq_num = SimpleNamespace(value=(0 | gateway_common.CLIENT_MASK))
 # source is the client gateway | dest is the server
 def forward_source_dest(args, source_socket : socket.socket, dest_socket : socket.socket, sym_key : bytes):
     global reset_flag
-    global rec_rekey_flag, ecc_pub_key_peer
 
     while not exit_flag and not reset_flag:
         try:
@@ -48,15 +47,15 @@ def forward_source_dest(args, source_socket : socket.socket, dest_socket : socke
                 if args.measure_perf:
                     #### Start measuring latency
                     start_time = latency_test.perf_counter()
-                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
+                    (gateway_common.rec_rekey_flag, data, gateway_common.ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
                     #### Stop measuring latency
                     stop_time = latency_test.perf_counter()
                     [latency_test.decrypt_average_latency, latency_test.decrypt_average_counter] = latency_test.add_to_average(latency_test.decrypt_average_latency, latency_test.decrypt_average_counter, stop_time - start_time)
                 else:
-                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
+                    (gateway_common.rec_rekey_flag, data, gateway_common.ecc_pub_key_peer) = AES_decrypt_and_verify(args, sym_key, enc_data, session_salt, expected_seq_num)
             except(ValueError):     # Peer might have failed to change to new key => revert to old key as well and try again
                 if gateway_common.old_sym_key is not None:
-                    (rec_rekey_flag, data, ecc_pub_key_peer) = AES_decrypt_and_verify(args, gateway_common.old_sym_key, enc_data, session_salt, expected_seq_num)     # If old_sym_key exists, try to decrypt using it
+                    (gateway_common.rec_rekey_flag, data, gateway_common.ecc_pub_key_peer) = AES_decrypt_and_verify(args, gateway_common.old_sym_key, enc_data, session_salt, expected_seq_num)     # If old_sym_key exists, try to decrypt using it
                     gateway_common.rekey_revert_flag = True
                     print("*** Rekeying failed! Reverting to old key! ***")
                 else:
@@ -70,8 +69,8 @@ def forward_source_dest(args, source_socket : socket.socket, dest_socket : socke
                     data = gateway_common.SOCKET_RESET_MESSAGE  # Reset connection if rekey flag is incorrect (because the nature of the plaintext cannot be determined)
             
             print("\nReceived from source: ", data)
-            print("Received rekey flag: ", rec_rekey_flag)
-            print("Received from source: ", ecc_pub_key_peer, "\n")
+            print("Received rekey flag: ", gateway_common.rec_rekey_flag)
+            print("Received from source: ", gateway_common.ecc_pub_key_peer, "\n")
 
             if(data == gateway_common.SOCKET_RESET_MESSAGE):
                 reset_flag = True
